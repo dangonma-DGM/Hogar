@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Hogar - Jardín & Calvario</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#f0fdf4', 100: '#dcfce7', 500: '#22c55e', 600: '#16a34a', 700: '#15803d' }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.25s ease-out forwards; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 h-full flex flex-col font-sans select-none antialiased">
+
+    <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center justify-between shadow-sm shrink-0 z-20">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-emerald-600/20">
+                <i class="fa-solid fa-house-chimney"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight">Mi Hogar Sync</h1>
+                <p class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <span id="sync-status-dot" class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>
+                    <span id="sync-status-text">Conectando...</span>
+                </p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button onclick="openConfigModal()" class="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition text-slate-600 dark:text-slate-300 relative" title="Configurar Firebase o Estado">
+                <i class="fa-solid fa-gear text-lg"></i>
+                <span id="config-badge" class="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 hidden"></span>
+            </button>
+            <button onclick="toggleDarkMode()" class="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition text-slate-600 dark:text-slate-300" title="Cambiar tema">
+                <i class="fa-solid fa-moon dark:hidden text-lg"></i>
+                <i class="fa-solid fa-sun hidden dark:inline text-lg text-amber-400"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-y-auto pb-24 md:pb-6 pt-3 px-3 sm:px-6 max-w-5xl w-full mx-auto">
+        
+        <!-- VIEW 1: HOUSES (JARDÍN & CALVARIO) -->
+        <section id="view-houses" class="space-y-4 animate-fade-in">
+            <!-- House Selector Tabs -->
+            <div class="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-2xl shadow-inner max-w-md mx-auto">
+                <button onclick="switchHouse('jardin')" id="btn-house-jardin" class="flex-1 py-2.5 px-4 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2 bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm">
+                    <i class="fa-solid fa-seedling"></i> Jardín
+                </button>
+                <button onclick="switchHouse('calvario')" id="btn-house-calvario" class="flex-1 py-2.5 px-4 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2 text-slate-600 dark:text-slate-300">
+                    <i class="fa-solid fa-mountain-sun"></i> Calvario
+                </button>
+            </div>
+
+            <!-- House Banner & Room Horizontal Scroll -->
+            <div class="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-2xl p-5 text-white shadow-lg relative overflow-hidden">
+                <div class="absolute -right-6 -bottom-6 opacity-10 text-9xl pointer-events-none">
+                    <i id="house-bg-icon" class="fa-solid fa-seedling"></i>
+                </div>
+                <div class="flex justify-between items-start relative z-10">
+                    <div>
+                        <span class="text-xs uppercase tracking-wider bg-white/25 px-2.5 py-1 rounded-full font-medium">Casa Activa</span>
+                        <h2 id="house-title" class="text-2xl font-black mt-1">Casa Jardín</h2>
+                        <p id="house-subtitle" class="text-emerald-100 text-sm mt-0.5">Gestión de habitaciones, tareas y compras locales.</p>
+                    </div>
+                    <button onclick="openAddRoomModal()" class="bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-xl text-xs font-semibold backdrop-blur-sm transition flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-plus"></i> Nueva Habitación
+                    </button>
+                </div>
+            </div>
+
+            <!-- Rooms Horizontal Navigation -->
+            <div id="rooms-tabs-container" class="flex gap-2 overflow-x-auto pb-2 pt-1 no-scrollbar">
+                <!-- Dynamically populated room pills -->
+            </div>
+
+            <!-- Active Room Content Area -->
+            <div id="active-room-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Left Column: Tasks Checklist -->
+                <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-base flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                            <i class="fa-solid fa-circle-check text-emerald-500"></i> Tareas Pendientes
+                            <span id="room-task-count" class="text-xs bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full">0</span>
+                        </h3>
+                        <button onclick="confirmDeleteCurrentRoom()" class="text-rose-500 hover:text-rose-600 text-xs font-medium px-2 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 transition flex items-center gap-1" title="Eliminar habitación actual">
+                            <i class="fa-solid fa-trash-can"></i> Borrar Habitación
+                        </button>
+                    </div>
+                    
+                    <!-- Add Task Form -->
+                    <form onsubmit="handleAddTask(event)" class="flex gap-2 mb-3">
+                        <input type="text" id="new-task-input" placeholder="Nueva tarea para esta habitación..." class="flex-1 bg-slate-100 dark:bg-slate-700 border-none rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition shadow-sm">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </form>
+
+                    <!-- Tasks List -->
+                    <div id="room-tasks-list" class="space-y-2 flex-1 overflow-y-auto max-h-[300px] pr-1">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Right Column: Room Shopping List -->
+                <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-base flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                            <i class="fa-solid fa-cart-shopping text-emerald-500"></i> Compras de la Habitación
+                            <span id="room-shop-count" class="text-xs bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full">0</span>
+                        </h3>
+                    </div>
+
+                    <!-- Add Shop Item Form -->
+                    <form onsubmit="handleAddRoomShop(event)" class="flex gap-2 mb-3">
+                        <input type="text" id="new-room-shop-input" placeholder="Artículo a comprar..." class="flex-1 bg-slate-100 dark:bg-slate-700 border-none rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition shadow-sm">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </form>
+
+                    <!-- Room Shopping List -->
+                    <div id="room-shop-list" class="space-y-2 flex-1 overflow-y-auto max-h-[300px] pr-1">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 2: GENERAL & SYNCHRONIZED SHOPPING LIST -->
+        <section id="view-shopping" class="space-y-4 hidden animate-fade-in">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-5 text-white shadow-lg">
+                <span class="text-xs uppercase tracking-wider bg-white/25 px-2.5 py-1 rounded-full font-medium">Supermercado y Casas</span>
+                <h2 class="text-2xl font-black mt-1">Lista de Compras Sincronizada</h2>
+                <p class="text-blue-100 text-sm mt-0.5">Artículos agrupados por casa y habitación, además de compras generales.</p>
+            </div>
+
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+                <form onsubmit="handleAddGeneralShop(event)" class="flex gap-2 mb-4">
+                    <input type="text" id="new-general-shop-input" placeholder="Añadir compra general (Ej: Leche, bombillas...)" class="flex-1 bg-slate-100 dark:bg-slate-700 border-none rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition shadow-sm flex items-center gap-1.5">
+                        <i class="fa-solid fa-plus"></i> General
+                    </button>
+                </form>
+
+                <div class="flex justify-between items-center mb-3 px-1">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Compras Agrupadas</span>
+                </div>
+
+                <!-- Container for all grouped shopping lists -->
+                <div id="synchronized-shopping-container" class="space-y-4">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 3: INCIDENTS, PACKAGES & TASKS -->
+        <section id="view-incidents" class="space-y-4 hidden animate-fade-in">
+            <div class="bg-gradient-to-r from-amber-600 to-orange-700 rounded-2xl p-5 text-white shadow-lg">
+                <span class="text-xs uppercase tracking-wider bg-white/25 px-2.5 py-1 rounded-full font-medium">Control y Gestión</span>
+                <h2 class="text-2xl font-black mt-1">Tareas, Paquetería e Incidencias</h2>
+                <p class="text-amber-100 text-sm mt-0.5">Seguimiento de envíos, reparaciones pendientes y avisos generales.</p>
+            </div>
+
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+                <button onclick="openAddIncidentModal()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-3 rounded-xl shadow-sm transition flex items-center justify-center gap-2 mb-4">
+                    <i class="fa-solid fa-circle-plus"></i> Registrar Nueva Incidencia o Paquete
+                </button>
+
+                <!-- Filters -->
+                <div class="flex gap-2 overflow-x-auto pb-2 mb-3 text-xs">
+                    <button onclick="filterIncidents('all')" id="filter-inc-all" class="px-3 py-1.5 rounded-lg font-semibold bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 transition">Todos</button>
+                    <button onclick="filterIncidents('Pendiente')" id="filter-inc-pend" class="px-3 py-1.5 rounded-lg font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition">Pendientes</button>
+                    <button onclick="filterIncidents('En Proceso')" id="filter-inc-proc" class="px-3 py-1.5 rounded-lg font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition">En Proceso</button>
+                    <button onclick="filterIncidents('Resuelto')" id="filter-inc-res" class="px-3 py-1.5 rounded-lg font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition">Resueltos</button>
+                </div>
+
+                <div id="incidents-list" class="space-y-3">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 4: CALENDAR & EVENTS -->
+        <section id="view-calendar" class="space-y-4 hidden animate-fade-in">
+            <div class="bg-gradient-to-r from-violet-600 to-purple-700 rounded-2xl p-5 text-white shadow-lg">
+                <span class="text-xs uppercase tracking-wider bg-white/25 px-2.5 py-1 rounded-full font-medium">Agenda Familiar</span>
+                <h2 class="text-2xl font-black mt-1">Calendario de Eventos</h2>
+                <p class="text-violet-100 text-sm mt-0.5">Vista mensual, cumpleaños, fiestas y citas importantes.</p>
+            </div>
+
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 space-y-4">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <button onclick="changeMonth(-1)" class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition"><i class="fa-solid fa-chevron-left"></i></button>
+                        <h3 id="calendar-month-title" class="font-bold text-base text-slate-800 dark:text-slate-100 capitalize min-w-[140px] text-center">Mes 2026</h3>
+                        <button onclick="changeMonth(1)" class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                    <button onclick="openAddEventModal()" class="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition shadow-sm flex items-center gap-1.5">
+                        <i class="fa-solid fa-calendar-plus"></i> Añadir Evento
+                    </button>
+                </div>
+
+                <!-- Monthly Grid Calendar -->
+                <div class="border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden">
+                    <div class="grid grid-cols-7 bg-slate-100 dark:bg-slate-700/50 text-center text-xs font-semibold py-2 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                        <span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
+                    </div>
+                    <div id="calendar-grid" class="grid grid-cols-7 bg-white dark:bg-slate-800 text-sm">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Upcoming list below -->
+                <div>
+                    <h4 class="font-bold text-sm text-slate-700 dark:text-slate-200 mb-2">Próximos Eventos</h4>
+                    <div id="calendar-events-list" class="space-y-2">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <nav class="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 fixed bottom-0 left-0 right-0 z-20 shadow-lg">
+        <div class="max-w-md mx-auto flex justify-around py-2">
+            <button onclick="switchTab('houses')" id="nav-houses" class="flex flex-col items-center py-1 px-3 text-emerald-600 dark:text-emerald-400 transition">
+                <i class="fa-solid fa-house text-lg"></i>
+                <span class="text-[11px] font-semibold mt-1">Casas</span>
+            </button>
+            <button onclick="switchTab('shopping')" id="nav-shopping" class="flex flex-col items-center py-1 px-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition">
+                <i class="fa-solid fa-cart-shopping text-lg"></i>
+                <span class="text-[11px] font-medium mt-1">Compras</span>
+            </button>
+            <button onclick="switchTab('incidents')" id="nav-incidents" class="flex flex-col items-center py-1 px-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition">
+                <i class="fa-solid fa-clipboard-list text-lg"></i>
+                <span class="text-[11px] font-medium mt-1">Incidencias</span>
+            </button>
+            <button onclick="switchTab('calendar')" id="nav-calendar" class="flex flex-col items-center py-1 px-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition">
+                <i class="fa-solid fa-calendar-days text-lg"></i>
+                <span class="text-[11px] font-medium mt-1">Calendario</span>
+            </button>
+        </div>
+    </nav>
+    
+    <!-- Add Room Modal -->
+    <div id="modal-room" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl animate-fade-in border border-slate-100 dark:border-slate-700">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg">Añadir Habitación</h3>
+                <button onclick="closeModals()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form onsubmit="handleCreateRoom(event)">
+                <div class="mb-4">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Nombre de la habitación</label>
+                    <input type="text" id="input-room-name" placeholder="Ej: Terraza, Cocina, Dormitorio..." class="w-full bg-slate-100 dark:bg-slate-700 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500" required>
+                </div>
+                <div class="flex gap-3">
+                    <button type="button" onclick="closeModals()" class="flex-1 bg-slate-100 dark:bg-slate-700 py-2.5 rounded-xl font-semibold text-sm hover:bg-slate-200 dark:hover:bg-slate-600 transition">Cancelar</button>
+                    <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl font-semibold text-sm shadow-sm transition">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Incident Modal -->
+    <div id="modal-incident" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl animate-fade-in border border-slate-100 dark:border-slate-700">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg">Nueva Incidencia o Paquete</h3>
+                <button onclick="closeModals()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form onsubmit="handleCreateIncident(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Título / Asunto</label>
+                    <input type="text" id="inc-title" placeholder="Ej: Paquete Amazon / Grifo roto" class="w-full bg-slate-100 dark:bg-slate-700 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500" required>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Tipo</label>
+                        <select id="inc-type" class="w-full bg-slate-100 dark:bg-slate-700 border-none rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-amber-500">
+                            <option value="Paquete">📦 Paquetería</option>
+                            <option value="Incidencia">🔧 Incidencia</option>
+                            <option value="Tarea">📝 Tarea General</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Casa</label>
+                        <select id="inc-house" class="w-full bg-slate-100 dark:bg-slate-700 border-none rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-amber-500">
+                            <option value="Jardín">Jardín</option>
+                            <option value="Calvario">Calvario</option>
+                            <option value="General">Ambas / General</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Notas / Descripción</label>
+                    <textarea id="inc-desc" rows="3" placeholder="Detalles adicionales..." class="w-full bg-slate-100 dark:bg-slate-700 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500"></textarea>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closeModals()" class="flex-1 bg-slate-100 dark:bg-slate-700 py-2.5 rounded-xl font-semibold text-sm">Cancelar</button>
+                    <button type="submit" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-xl font-semibold text-sm shadow-sm">Registrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Event Modal -->
+    <div id="modal-event" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl animate-fade-in border border-slate-100 dark:border-slate-700">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg">Añadir Evento</h3>
+                <button onclick="closeModals()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form onsubmit="handleCreateEvent(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Título del Evento</label>
+                    <input type="text" id="ev-title" placeholder="Ej: Cumpleaños Mamá / Fiesta" class="w-full bg-slate-100 dark:bg-slate-700 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-violet-500" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Fecha</label>
+                    <input type="date" id="ev-date" class="w-full bg-slate-100 dark:bg-slate-700 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-violet-500" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Categoría</label>
+                    <select id="ev-cat" class="w-full bg-slate-100 dark:bg-slate-700 border-none rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-violet-500">
+                        <option value="Cumpleaños">🎂 Cumpleaños</option>
+                        <option value="Fiesta">🎉 Fiesta / Celebración</option>
+                        <option value="Visita">👥 Visita</option>
+                        <option value="Otro">📌 Otro</option>
+                    </select>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closeModals()" class="flex-1 bg-slate-100 dark:bg-slate-700 py-2.5 rounded-xl font-semibold text-sm">Cancelar</button>
+                    <button type="submit" class="flex-1 bg-violet-600 hover:bg-violet-700 text-white py-2.5 rounded-xl font-semibold text-sm shadow-sm">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase Config Modal -->
+    <div id="modal-config" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl animate-fade-in border border-slate-100 dark:border-slate-700">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-cloud text-emerald-500"></i> Sincronización Firebase</h3>
+                <button onclick="closeModals()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Inserta tu configuración de Firebase para sincronizar automáticamente entre tu móvil y tu PC en tiempo real. Si no configuras ninguna, la app funcionará en modo local con almacenamiento interno.</p>
+            
+            <form onsubmit="handleSaveFirebaseConfig(event)" class="space-y-3">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">API Key</label>
+                    <input type="text" id="fb-apikey" placeholder="AIzaSy..." class="w-full bg-slate-100 dark:bg-slate-700 border-none rounded-xl px-3.5 py-2 text-xs font-mono">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Project ID</label>
+                    <input type="text" id="fb-projectid" placeholder="mi-hogar-app" class="w-full bg-slate-100 dark:bg-slate-700 border-none rounded-xl px-3.5 py-2 text-xs font-mono">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">App ID</label>
+                    <input type="text" id="fb-appid" placeholder="1:123456:web:abcdef" class="w-full bg-slate-100 dark:bg-slate-700 border-none rounded-xl px-3.5 py-2 text-xs font-mono">
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closeModals()" class="flex-1 bg-slate-100 dark:bg-slate-700 py-2.5 rounded-xl font-semibold text-xs">Cerrar</button>
+                    <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl font-semibold text-xs shadow-sm">Conectar Firebase</button>
+                </div>
+            </form>
+            <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 text-center">
+                <button onclick="resetToLocalMode()" class="text-xs text-rose-500 hover:underline">Desconectar y usar Modo Local</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Alert / Message Modal -->
+    <div id="modal-alert" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center animate-fade-in border border-slate-100 dark:border-slate-700">
+            <div id="alert-icon" class="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 flex items-center justify-center text-xl mx-auto mb-3">
+                <i class="fa-solid fa-check"></i>
+            </div>
+            <h3 id="alert-title" class="font-bold text-lg mb-1">Aviso</h3>
+            <p id="alert-message" class="text-sm text-slate-500 dark:text-slate-400 mb-5">Mensaje del sistema.</p>
+            <button onclick="closeAlertModal()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl font-semibold text-sm shadow-sm transition">Entendido</button>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="modal-confirm" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center animate-fade-in border border-slate-100 dark:border-slate-700">
+            <div class="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-950/50 text-rose-600 flex items-center justify-center text-xl mx-auto mb-3">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 id="confirm-title" class="font-bold text-lg mb-1">¿Estás seguro?</h3>
+            <p id="confirm-message" class="text-sm text-slate-500 dark:text-slate-400 mb-5">Esta acción no se puede deshacer.</p>
+            <div class="flex gap-3">
+                <button onclick="closeConfirmModal()" class="flex-1 bg-slate-100 dark:bg-slate-700 py-2.5 rounded-xl font-semibold text-sm">Cancelar</button>
+                <button id="confirm-btn-yes" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white py-2.5 rounded-xl font-semibold text-sm shadow-sm">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global State & Environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'hogar-jardin-calvario-app';
+        const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        let db = null;
+        let auth = null;
+        let unsubscribeFirestore = null;
+        let isFirebaseConnected = false;
+        let currentCalendarDate = new Date();
+
+        // Default Data Model
+        let appData = {
+            activeHouse: 'jardin', // 'jardin' or 'calvario'
+            activeTab: 'houses', // 'houses', 'shopping', 'incidents', 'calendar'
+            houses: {
+                jardin: {
+                    name: 'Casa Jardín',
+                    activeRoom: 'Salón',
+                    rooms: {
+                        'Salón': {
+                            tasks: [
+                                { id: 't1', text: 'Limpiar chimenea', completed: false },
+                                { id: 't2', text: 'Revisar plantas del patio', completed: true }
+                            ],
+                            shopping: [
+                                { id: 's1', text: 'Pilas para el mando', completed: false }
+                            ]
+                        },
+                        'Cocina': {
+                            tasks: [
+                                { id: 't3', text: 'Comprobar filtro campana', completed: false }
+                            ],
+                            shopping: [
+                                { id: 's2', text: 'Café de grano', completed: false }
+                            ]
+                        },
+                        'Jardín Exterior': {
+                            tasks: [
+                                { id: 't4', text: 'Regar césped zona norte', completed: false }
+                            ],
+                            shopping: [
+                                { id: 's3', text: 'Abono para rosales', completed: false }
+                            ]
+                        }
+                    }
+                },
+                calvario: {
+                    name: 'Casa Calvario',
+                    activeRoom: 'Salón',
+                    rooms: {
+                        'Salón': {
+                            tasks: [
+                                { id: 't5', text: 'Revisar persiana principal', completed: false }
+                            ],
+                            shopping: [
+                                { id: 's4', text: 'Bombilla LED cálida', completed: true }
+                            ]
+                        },
+                        'Habitación Principal': {
+                            tasks: [
+                                { id: 't6', text: 'Cambiar ropa de cama', completed: false }
+                            ],
+                            shopping: []
+                        }
+                    }
+                }
+            },
+            generalShopping: [
+                { id: 'gs1', text: 'Papel higiénico', completed: false },
+                { id: 'gs2', text: 'Doypack detergente ropa', completed: true },
+                { id: 'gs3', text: 'Leche semi', completed: false }
+            ],
+            incidents: [
+                { id: 'inc1', title: 'Paquete Repuesto Grifo', type: 'Paquete', house: 'Jardín', desc: 'Llega por Correos Express', status: 'Pendiente', date: '2026-03-30' },
+                { id: 'inc2', title: 'Revisión Caldera anual', type: 'Incidencia', house: 'Calvario', desc: 'Llamar al técnico de gas', status: 'En Proceso', date: '2026-04-02' }
+            ],
+            calendarEvents: [
+                { id: 'ev1', title: 'Cumpleaños Abuela', date: '2026-04-05', cat: 'Cumpleaños' },
+                { id: 'ev2', title: 'Barbacoa Familiar', date: '2026-04-12', cat: 'Fiesta' }
+            ],
+            incidentFilter: 'all'
+        };
+
+        // Load LocalStorage backup if available
+        const localSaved = localStorage.getItem('hogar_sync_data');
+        if (localSaved) {
+            try { appData = JSON.parse(localSaved); } catch(e) { console.error(e); }
+        }
+
+        window.saveData = function(syncCloud = true) {
+            localStorage.setItem('hogar_sync_data', JSON.stringify(appData));
+            renderApp();
+            if (isFirebaseConnected && syncCloud && db && auth && auth.currentUser) {
+                syncToFirebase();
+            }
+        };
+
+        // Firebase Initialization & Sync Setup
+        async function initFirebase(customConfig = null) {
+            try {
+                let cfg = customConfig;
+                if (!cfg) {
+                    const savedCfg = localStorage.getItem('hogar_fb_cfg');
+                    if (savedCfg) cfg = JSON.parse(savedCfg);
+                    else if (typeof __firebase_config !== 'undefined') {
+                        cfg = JSON.parse(__firebase_config);
+                    }
+                }
+
+                if (!cfg || !cfg.apiKey) {
+                    updateSyncStatus(false, 'Modo Local (Sin nube)');
+                    return;
+                }
+
+                const app = initializeApp(cfg);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                if (initialToken) {
+                    await signInWithCustomToken(auth, initialToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        isFirebaseConnected = true;
+                        updateSyncStatus(true, 'Sincronizado en tiempo real');
+                        document.getElementById('config-badge').classList.remove('hidden');
+                        listenToFirestore(user.uid);
+                    }
+                });
+            } catch (err) {
+                console.error("Firebase init error:", err);
+                updateSyncStatus(false, 'Error conexión nube');
+            }
+        }
+
+        function listenToFirestore(uid) {
+            if (!db) return;
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'main_data');
+            if (unsubscribeFirestore) unsubscribeFirestore();
+            
+            unsubscribeFirestore = onSnapshot(docRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const cloudData = docSnap.data();
+                    if (cloudData && cloudData.payload) {
+                        appData = JSON.parse(cloudData.payload);
+                        localStorage.setItem('hogar_sync_data', JSON.stringify(appData));
+                        renderApp();
+                    }
+                } else {
+                    syncToFirebase();
+                }
+            }, (error) => {
+                console.error("Firestore snapshot error:", error);
+                updateSyncStatus(false, 'Error de sincronización');
+            });
+        }
+
+        async function syncToFirebase() {
+            if (!db || !auth || !auth.currentUser) return;
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'main_data');
+                await setDoc(docRef, {
+                    payload: JSON.stringify(appData),
+                    updatedAt: new Date().toISOString(),
+                    updatedBy: auth.currentUser.uid
+                });
+                updateSyncStatus(true, 'Sincronizado');
+            } catch (err) {
+                console.error("Sync error:", err);
+                updateSyncStatus(false, 'Error al guardar en nube');
+            }
+        }
+
+        function updateSyncStatus(connected, text) {
+            const dot = document.getElementById('sync-status-dot');
+            const lbl = document.getElementById('sync-status-text');
+            if (connected) {
+                dot.className = "w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse";
+                lbl.innerText = text;
+            } else {
+                dot.className = "w-2 h-2 rounded-full bg-amber-500 inline-block";
+                lbl.innerText = text;
+            }
+        }
+
+        // Global UI Handlers available to window
+        window.switchTab = function(tab) {
+            appData.activeTab = tab;
+            ['houses', 'shopping', 'incidents', 'calendar'].forEach(t => {
+                const el = document.getElementById(`view-${t}`);
+                const nav = document.getElementById(`nav-${t}`);
+                if (t === tab) {
+                    el.classList.remove('hidden');
+                    nav.className = "flex flex-col items-center py-1 px-3 text-emerald-600 dark:text-emerald-400 transition";
+                } else {
+                    el.classList.add('hidden');
+                    nav.className = "flex flex-col items-center py-1 px-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition";
+                }
+            });
+            window.saveData();
+        };
+
+        window.switchHouse = function(houseKey) {
+            appData.activeHouse = houseKey;
+            const house = appData.houses[houseKey];
+            const roomsKeys = Object.keys(house.rooms);
+            if (!roomsKeys.includes(house.activeRoom) && roomsKeys.length > 0) {
+                house.activeRoom = roomsKeys[0];
+            }
+            window.saveData();
+        };
+
+        window.switchRoom = function(roomName) {
+            appData.houses[appData.activeHouse].activeRoom = roomName;
+            window.saveData();
+        };
+
+        window.toggleDarkMode = function() {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('hogar_dark', document.documentElement.classList.contains('dark') ? '1' : '0');
+        };
+
+        window.changeMonth = function(direction) {
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + direction);
+            renderCalendarView();
+        };
+
+        // Render Engine
+        function renderApp() {
+            // House UI Switch state
+            const isJardin = appData.activeHouse === 'jardin';
+            const btnJardin = document.getElementById('btn-house-jardin');
+            const btnCalvario = document.getElementById('btn-house-calvario');
+            const houseTitle = document.getElementById('house-title');
+            const houseSubtitle = document.getElementById('house-subtitle');
+            const houseBgIcon = document.getElementById('house-bg-icon');
+
+            if (isJardin) {
+                btnJardin.className = "flex-1 py-2.5 px-4 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2 bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm";
+                btnCalvario.className = "flex-1 py-2.5 px-4 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2 text-slate-600 dark:text-slate-300";
+                houseTitle.innerText = "Casa Jardín";
+                houseSubtitle.innerText = "Gestión de habitaciones, tareas y compras del Jardín.";
+                houseBgIcon.className = "fa-solid fa-seedling";
+            } else {
+                btnCalvario.className = "flex-1 py-2.5 px-4 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2 bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm";
+                btnJardin.className = "flex-1 py-2.5 px-4 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2 text-slate-600 dark:text-slate-300";
+                houseTitle.innerText = "Casa Calvario";
+                houseSubtitle.innerText = "Gestión de habitaciones, tareas y compras del Calvario.";
+                houseBgIcon.className = "fa-solid fa-mountain-sun";
+            }
+
+            const house = appData.houses[appData.activeHouse];
+            const roomsContainer = document.getElementById('rooms-tabs-container');
+            roomsContainer.innerHTML = '';
+
+            Object.keys(house.rooms).forEach(roomName => {
+                const isActive = roomName === house.activeRoom;
+                const btn = document.createElement('button');
+                btn.className = `px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition shadow-sm flex items-center gap-1.5 ${isActive ? 'bg-emerald-600 text-white shadow-emerald-600/20' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'}`;
+                btn.innerHTML = `<i class="fa-solid fa-door-open"></i> ${roomName}`;
+                btn.onclick = () => window.switchRoom(roomName);
+                roomsContainer.appendChild(btn);
+            });
+
+            // Render Active Room Tasks & Shopping
+            const currentRoom = house.rooms[appData.activeHouse === 'jardin' ? appData.houses.jardin.activeRoom : appData.houses.calvario.activeRoom] || { tasks: [], shopping: [] };
+            
+            // Tasks
+            const tasksListEl = document.getElementById('room-tasks-list');
+            document.getElementById('room-task-count').innerText = house.rooms[house.activeRoom]?.tasks?.length || 0;
+            const activeRoomObj = house.rooms[house.activeRoom] || { tasks: [], shopping: [] };
+            
+            tasksListEl.innerHTML = activeRoomObj.tasks.length === 0 ? 
+                `<p class="text-xs text-slate-400 text-center py-4">No hay tareas pendientes en esta habitación.</p>` : '';
+
+            activeRoomObj.tasks.forEach(task => {
+                const div = document.createElement('div');
+                div.className = `flex items-center justify-between p-3 rounded-xl border transition ${task.completed ? 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50 opacity-60' : 'bg-white dark:bg-slate-700/50 border-slate-100 dark:border-slate-700 shadow-sm'}`;
+                div.innerHTML = `
+                    <label class="flex items-center gap-3 flex-1 cursor-pointer">
+                        <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleRoomTask('${task.id}')" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500">
+                        <span class="text-sm ${task.completed ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}">${escapeHtml(task.text)}</span>
+                    </label>
+                    <button onclick="deleteRoomTask('${task.id}')" class="text-slate-400 hover:text-rose-500 p-1 text-xs transition"><i class="fa-solid fa-trash"></i></button>
+                `;
+                tasksListEl.appendChild(div);
+            });
+
+            // Room Shopping
+            const roomShopEl = document.getElementById('room-shop-list');
+            document.getElementById('room-shop-count').innerText = activeRoomObj.shopping.length;
+            roomShopEl.innerHTML = activeRoomObj.shopping.length === 0 ? 
+                `<p class="text-xs text-slate-400 text-center py-4">Sin compras específicas para esta habitación.</p>` : '';
+
+            activeRoomObj.shopping.forEach(item => {
+                const div = document.createElement('div');
+                div.className = `flex items-center justify-between p-3 rounded-xl border transition ${item.completed ? 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50 opacity-60' : 'bg-white dark:bg-slate-700/50 border-slate-100 dark:border-slate-700 shadow-sm'}`;
+                div.innerHTML = `
+                    <label class="flex items-center gap-3 flex-1 cursor-pointer">
+                        <input type="checkbox" ${item.completed ? 'checked' : ''} onchange="toggleRoomShop('${item.id}')" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500">
+                        <span class="text-sm ${item.completed ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}">${escapeHtml(item.text)}</span>
+                    </label>
+                    <button onclick="deleteRoomShop('${item.id}')" class="text-slate-400 hover:text-rose-500 p-1 text-xs transition"><i class="fa-solid fa-trash"></i></button>
+                `;
+                roomShopEl.appendChild(div);
+            });
+
+            // Render Synchronized Shopping (Houses & Rooms + General)
+            renderSynchronizedShopping();
+
+            // Render Incidents
+            const incList = document.getElementById('incidents-list');
+            const filter = appData.incidentFilter || 'all';
+            
+            ['all', 'Pendiente', 'En Proceso', 'Resuelto'].forEach(f => {
+                const btnId = f === 'all' ? 'filter-inc-all' : (f === 'Pendiente' ? 'filter-inc-pend' : (f === 'En Proceso' ? 'filter-inc-proc' : 'filter-inc-res'));
+                const el = document.getElementById(btnId);
+                if (el) {
+                    if (filter === f) {
+                        el.className = "px-3 py-1.5 rounded-lg font-semibold bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 transition";
+                    } else {
+                        el.className = "px-3 py-1.5 rounded-lg font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 transition";
+                    }
+                }
+            });
+
+            const filteredIncidents = appData.incidents.filter(inc => filter === 'all' || inc.status === filter);
+            incList.innerHTML = filteredIncidents.length === 0 ? 
+                `<p class="text-xs text-slate-400 text-center py-6">No hay registros con este filtro.</p>` : '';
+
+            filteredIncidents.forEach(inc => {
+                const badgeColor = inc.status === 'Resuelto' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300' : (inc.status === 'En Proceso' ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300');
+                const typeIcon = inc.type === 'Paquete' ? 'fa-box' : (inc.type === 'Incidencia' ? 'fa-wrench' : 'fa-clipboard');
+                
+                const div = document.createElement('div');
+                div.className = "p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm space-y-2";
+                div.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex items-center gap-2">
+                            <span class="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 flex items-center justify-center text-sm"><i class="fa-solid ${typeIcon}"></i></span>
+                            <div>
+                                <h4 class="font-bold text-sm text-slate-800 dark:text-slate-100">${escapeHtml(inc.title)}</h4>
+                                <span class="text-[11px] text-slate-400">${escapeHtml(inc.house)} • ${inc.date}</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full ${badgeColor}">${inc.status}</span>
+                    </div>
+                    ${inc.desc ? `<p class="text-xs text-slate-600 dark:text-slate-300 pl-10">${escapeHtml(inc.desc)}</p>` : ''}
+                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-700 text-xs">
+                        <select onchange="updateIncidentStatus('${inc.id}', this.value)" class="bg-slate-100 dark:bg-slate-700 border-none rounded-lg px-2 py-1 text-xs">
+                            <option value="Pendiente" ${inc.status === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
+                            <option value="En Proceso" ${inc.status === 'En Proceso' ? 'selected' : ''}>En Proceso</option>
+                            <option value="Resuelto" ${inc.status === 'Resuelto' ? 'selected' : ''}>Resuelto</option>
+                        </select>
+                        <button onclick="deleteIncident('${inc.id}')" class="text-slate-400 hover:text-rose-500 px-2 py-1"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                `;
+                incList.appendChild(div);
+            });
+
+            // Render Calendar View & Events
+            renderCalendarView();
+            renderCalendarEventsList();
+        }
+
+        function renderSynchronizedShopping() {
+            const container = document.getElementById('synchronized-shopping-container');
+            container.innerHTML = '';
+
+            // 1. General Section
+            const genDiv = document.createElement('div');
+            genDiv.className = "bg-slate-50 dark:bg-slate-700/30 rounded-2xl p-3 border border-slate-200 dark:border-slate-700";
+            let genHtml = `<div class="flex items-center justify-between mb-2"><h4 class="font-bold text-xs uppercase text-blue-600 dark:text-blue-400 flex items-center gap-1.5"><i class="fa-solid fa-basket-shopping"></i> Compras Generales / Supermercado</h4><span class="text-[11px] bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full font-medium">${appData.generalShopping.length}</span></div><div class="space-y-2">`;
+            
+            if (appData.generalShopping.length === 0) {
+                genHtml += `<p class="text-xs text-slate-400 py-1">Sin artículos generales.</p>`;
+            } else {
+                appData.generalShopping.forEach(item => {
+                    genHtml += `
+                        <div class="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm">
+                            <label class="flex items-center gap-3 flex-1 cursor-pointer">
+                                <input type="checkbox" ${item.completed ? 'checked' : ''} onchange="toggleGeneralShop('${item.id}')" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                                <span class="text-sm ${item.completed ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}">${escapeHtml(item.text)}</span>
+                            </label>
+                            <button onclick="deleteGeneralShop('${item.id}')" class="text-slate-400 hover:text-rose-500 p-1 text-xs"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    `;
+                });
+            }
+            genHtml += `</div>`;
+            genDiv.innerHTML = genHtml;
+            container.appendChild(genDiv);
+
+            // 2. Houses & Rooms Sections
+            Object.keys(appData.houses).forEach(houseKey => {
+                const house = appData.houses[houseKey];
+                Object.keys(house.rooms).forEach(roomName => {
+                    const room = house.rooms[roomName];
+                    if (room.shopping && room.shopping.length > 0) {
+                        const roomDiv = document.createElement('div');
+                        roomDiv.className = "bg-slate-50 dark:bg-slate-700/30 rounded-2xl p-3 border border-slate-200 dark:border-slate-700";
+                        let roomHtml = `<div class="flex items-center justify-between mb-2"><h4 class="font-bold text-xs uppercase text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5"><i class="fa-solid fa-house"></i> ${house.name} &bull; <i class="fa-solid fa-door-open"></i> ${roomName}</h4><span class="text-[11px] bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full font-medium">${room.shopping.length}</span></div><div class="space-y-2">`;
+
+                        room.shopping.forEach(item => {
+                            roomHtml += `
+                                <div class="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm">
+                                    <label class="flex items-center gap-3 flex-1 cursor-pointer">
+                                        <input type="checkbox" ${item.completed ? 'checked' : ''} onchange="toggleRoomShopSync('${houseKey}', '${roomName}', '${item.id}')" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500">
+                                        <span class="text-sm ${item.completed ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}">${escapeHtml(item.text)}</span>
+                                    </label>
+                                    <button onclick="deleteRoomShopSync('${houseKey}', '${roomName}', '${item.id}')" class="text-slate-400 hover:text-rose-500 p-1 text-xs"><i class="fa-solid fa-trash"></i></button>
+                                </div>
+                            `;
+                        });
+                        roomHtml += `</div>`;
+                        roomDiv.innerHTML = roomHtml;
+                        container.appendChild(roomDiv);
+                    }
+                });
+            });
+        }
+
+        function renderCalendarView() {
+            const titleEl = document.getElementById('calendar-month-title');
+            const gridEl = document.getElementById('calendar-grid');
+            gridEl.innerHTML = '';
+
+            const year = currentCalendarDate.getFullYear();
+            const month = currentCalendarDate.getMonth();
+
+            const monthNames = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+            titleEl.innerText = `${monthNames[month]} ${year}`;
+
+            // First day of month and total days
+            const firstDayIndex = (new Date(year, month, 1).getDay() + 6) % 7; // Monday start
+            const totalDays = new Date(year, month + 1, 0).getDate();
+            const prevTotalDays = new Date(year, month, 0).getDate();
+
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            // Render previous month padding days
+            for (let i = firstDayIndex; i > 0; i--) {
+                const dayNum = prevTotalDays - i + 1;
+                const cell = document.createElement('div');
+                cell.className = "min-h-[70px] p-1.5 border-b border-r border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-900/40 text-slate-400 dark:text-slate-600 text-xs";
+                cell.innerHTML = `<span class="font-medium">${dayNum}</span>`;
+                gridEl.appendChild(cell);
+            }
+
+            // Render current month days
+            for (let day = 1; day <= totalDays; day++) {
+                const monthStr = String(month + 1).padStart(2, '0');
+                const dayStr = String(day).padStart(2, '0');
+                const dateKey = `${year}-${monthStr}-${dayStr}`;
+                const isToday = dateKey === todayStr;
+
+                const dayEvents = appData.calendarEvents.filter(e => e.date === dateKey);
+
+                const cell = document.createElement('div');
+                cell.className = `min-h-[70px] p-1.5 border-b border-r border-slate-100 dark:border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/30 transition ${isToday ? 'bg-violet-50/60 dark:bg-violet-950/20 font-bold' : ''}`;
+                cell.onclick = () => openAddEventModalWithDate(dateKey);
+
+                let cellHtml = `<div class="flex justify-between items-center"><span class="w-6 h-6 rounded-full flex items-center justify-center text-xs ${isToday ? 'bg-violet-600 text-white' : 'text-slate-700 dark:text-slate-200'}">${day}</span>${dayEvents.length > 0 ? `<span class="w-1.5 h-1.5 rounded-full bg-violet-500"></span>` : ''}</div><div class="space-y-0.5 overflow-hidden flex-1 mt-1">`;
+
+                dayEvents.slice(0, 2).forEach(ev => {
+                    cellHtml += `<div class="text-[10px] bg-violet-100 dark:bg-violet-900/50 text-violet-700 dark:text-violet-300 px-1.5 py-0.5 rounded truncate font-medium">${escapeHtml(ev.title)}</div>`;
+                });
+                if (dayEvents.length > 2) {
+                    cellHtml += `<div class="text-[9px] text-slate-400 pl-0.5">+${dayEvents.length - 2} más</div>`;
+                }
+                cellHtml += `</div>`;
+                cell.innerHTML = cellHtml;
+                gridEl.appendChild(cell);
+            }
+
+            // Fill trailing days
+            const totalCellsSoFar = firstDayIndex + totalDays;
+            const remainingCells = totalCellsSoFar % 7 === 0 ? 0 : 7 - (totalCellsSoFar % 7);
+            for (let i = 1; i <= remainingCells; i++) {
+                const cell = document.createElement('div');
+                cell.className = "min-h-[70px] p-1.5 border-b border-r border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-900/40 text-slate-400 dark:text-slate-600 text-xs";
+                cell.innerHTML = `<span class="font-medium">${i}</span>`;
+                gridEl.appendChild(cell);
+            }
+        }
+
+        function renderCalendarEventsList() {
+            const calList = document.getElementById('calendar-events-list');
+            calList.innerHTML = appData.calendarEvents.length === 0 ? 
+                `<p class="text-xs text-slate-400 text-center py-4">Sin eventos programados.</p>` : '';
+
+            const sortedEvents = [...appData.calendarEvents].sort((a,b) => new Date(a.date) - new Date(b.date));
+
+            sortedEvents.forEach(ev => {
+                const div = document.createElement('div');
+                div.className = "flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm";
+                div.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-950/50 text-violet-600 flex flex-col items-center justify-center font-bold text-xs">
+                            <i class="fa-solid fa-calendar-day"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-slate-100">${escapeHtml(ev.title)}</h4>
+                            <p class="text-xs text-slate-400">${ev.date} &bull; <span class="font-medium text-violet-600 dark:text-violet-400">${escapeHtml(ev.cat)}</span></p>
+                        </div>
+                    </div>
+                    <button onclick="deleteEvent('${ev.id}')" class="text-slate-400 hover:text-rose-500 p-2 text-xs"><i class="fa-solid fa-trash"></i></button>
+                `;
+                calList.appendChild(div);
+            });
+        }
+
+        // Action Handlers
+        window.handleAddTask = function(e) {
+            e.preventDefault();
+            const input = document.getElementById('new-task-input');
+            const text = input.value.trim();
+            if (!text) return;
+            const house = appData.houses[appData.activeHouse];
+            const room = house.rooms[house.activeRoom];
+            if (!room.tasks) room.tasks = [];
+            room.tasks.push({ id: 't_' + Math.random().toString(36).substr(2, 9), text, completed: false });
+            input.value = '';
+            window.saveData();
+        };
+
+        window.toggleRoomTask = function(taskId) {
+            const house = appData.houses[appData.activeHouse];
+            const room = house.rooms[house.activeRoom];
+            const task = room.tasks.find(t => t.id === taskId);
+            if (task) {
+                task.completed = !task.completed;
+                window.saveData();
+            }
+        };
+
+        window.deleteRoomTask = function(taskId) {
+            const house = appData.houses[appData.activeHouse];
+            const room = house.rooms[house.activeRoom];
+            room.tasks = room.tasks.filter(t => t.id !== taskId);
+            window.saveData();
+        };
+
+        window.handleAddRoomShop = function(e) {
+            e.preventDefault();
+            const input = document.getElementById('new-room-shop-input');
+            const text = input.value.trim();
+            if (!text) return;
+            const house = appData.houses[appData.activeHouse];
+            const room = house.rooms[house.activeRoom];
+            if (!room.shopping) room.shopping = [];
+            room.shopping.push({ id: 's_' + Math.random().toString(36).substr(2, 9), text, completed: false });
+            input.value = '';
+            window.saveData();
+        };
+
+        window.toggleRoomShop = function(shopId) {
+            const house = appData.houses[appData.activeHouse];
+            const room = house.rooms[house.activeRoom];
+            const item = room.shopping.find(s => s.id === shopId);
+            if (item) {
+                item.completed = !item.completed;
+                window.saveData();
+            }
+        };
+
+        window.deleteRoomShop = function(shopId) {
+            const house = appData.houses[appData.activeHouse];
+            const room = house.rooms[house.activeRoom];
+            room.shopping = room.shopping.filter(s => s.id !== shopId);
+            window.saveData();
+        };
+
+        window.toggleRoomShopSync = function(houseKey, roomName, shopId) {
+            const item = appData.houses[houseKey].rooms[roomName].shopping.find(s => s.id === shopId);
+            if (item) {
+                item.completed = !item.completed;
+                window.saveData();
+            }
+        };
+
+        window.deleteRoomShopSync = function(houseKey, roomName, shopId) {
+            const room = appData.houses[houseKey].rooms[roomName];
+            room.shopping = room.shopping.filter(s => s.id !== shopId);
+            window.saveData();
+        };
+
+        window.handleAddGeneralShop = function(e) {
+            e.preventDefault();
+            const input = document.getElementById('new-general-shop-input');
+            const text = input.value.trim();
+            if (!text) return;
+            appData.generalShopping.push({ id: 'gs_' + Math.random().toString(36).substr(2, 9), text, completed: false });
+            input.value = '';
+            window.saveData();
+        };
+
+        window.toggleGeneralShop = function(id) {
+            const item = appData.generalShopping.find(i => i.id === id);
+            if (item) {
+                item.completed = !item.completed;
+                window.saveData();
+            }
+        };
+
+        window.deleteGeneralShop = function(id) {
+            appData.generalShopping = appData.generalShopping.filter(i => i.id !== id);
+            window.saveData();
+        };
+
+        window.handleCreateRoom = function(e) {
+            e.preventDefault();
+            const name = document.getElementById('input-room-name').value.trim();
+            if (!name) return;
+            const house = appData.houses[appData.activeHouse];
+            if (house.rooms[name]) {
+                showAlert("Aviso", "Ya existe una habitación con ese nombre.");
+                return;
+            }
+            house.rooms[name] = { tasks: [], shopping: [] };
+            house.activeRoom = name;
+            closeModals();
+            document.getElementById('input-room-name').value = '';
+            window.saveData();
+        };
+
+        window.confirmDeleteCurrentRoom = function() {
+            const house = appData.houses[appData.activeHouse];
+            const roomsKeys = Object.keys(house.rooms);
+            if (roomsKeys.length <= 1) {
+                showAlert("Aviso", "Debes mantener al menos una habitación en la casa.");
+                return;
+            }
+            showConfirm("Eliminar Habitación", `¿Estás seguro de eliminar la habitación "${house.activeRoom}"?`, () => {
+                delete house.rooms[house.activeRoom];
+                house.activeRoom = Object.keys(house.rooms)[0];
+                window.saveData();
+            });
+        };
+
+        window.handleCreateIncident = function(e) {
+            e.preventDefault();
+            const title = document.getElementById('inc-title').value.trim();
+            const type = document.getElementById('inc-type').value;
+            const house = document.getElementById('inc-house').value;
+            const desc = document.getElementById('inc-desc').value.trim();
+            if (!title) return;
+
+            appData.incidents.unshift({
+                id: 'inc_' + Math.random().toString(36).substr(2, 9),
+                title, type, house, desc,
+                status: 'Pendiente',
+                date: new Date().toISOString().split('T')[0]
+            });
+            closeModals();
+            document.getElementById('inc-title').value = '';
+            document.getElementById('inc-desc').value = '';
+            window.saveData();
+        };
+
+        window.updateIncidentStatus = function(id, status) {
+            const inc = appData.incidents.find(i => i.id === id);
+            if (inc) {
+                inc.status = status;
+                window.saveData();
+            }
+        };
+
+        window.deleteIncident = function(id) {
+            appData.incidents = appData.incidents.filter(i => i.id !== id);
+            window.saveData();
+        };
+
+        window.filterIncidents = function(f) {
+            appData.incidentFilter = f;
+            renderApp();
+        };
+
+        window.handleCreateEvent = function(e) {
+            e.preventDefault();
+            const title = document.getElementById('ev-title').value.trim();
+            const date = document.getElementById('ev-date').value;
+            const cat = document.getElementById('ev-cat').value;
+            if (!title || !date) return;
+
+            appData.calendarEvents.push({
+                id: 'ev_' + Math.random().toString(36).substr(2, 9),
+                title, date, cat
+            });
+            closeModals();
+            document.getElementById('ev-title').value = '';
+            window.saveData();
+        };
+
+        window.deleteEvent = function(id) {
+            appData.calendarEvents = appData.calendarEvents.filter(e => e.id !== id);
+            window.saveData();
+        };
+
+        // Modal Controls
+        window.openAddRoomModal = () => document.getElementById('modal-room').classList.remove('hidden');
+        window.openAddIncidentModal = () => document.getElementById('modal-incident').classList.remove('hidden');
+        window.openAddEventModal = () => {
+            document.getElementById('modal-event').classList.remove('hidden');
+            document.getElementById('ev-date').value = new Date().toISOString().split('T')[0];
+        };
+        window.openAddEventModalWithDate = function(dateStr) {
+            document.getElementById('modal-event').classList.remove('hidden');
+            document.getElementById('ev-date').value = dateStr;
+        };
+
+        window.openConfigModal = () => {
+            const saved = localStorage.getItem('hogar_fb_cfg');
+            if (saved) {
+                try {
+                    const cfg = JSON.parse(saved);
+                    document.getElementById('fb-apikey').value = cfg.apiKey || '';
+                    document.getElementById('fb-projectid').value = cfg.projectId || '';
+                    document.getElementById('fb-appid').value = cfg.appId || '';
+                } catch(e){}
+            }
+            document.getElementById('modal-config').classList.remove('hidden');
+        };
+
+        window.closeModals = function() {
+            ['modal-room', 'modal-incident', 'modal-event', 'modal-config'].forEach(m => {
+                document.getElementById(m).classList.add('hidden');
+            });
+        };
+
+        window.handleSaveFirebaseConfig = function(e) {
+            e.preventDefault();
+            const apiKey = document.getElementById('fb-apikey').value.trim();
+            const projectId = document.getElementById('fb-projectid').value.trim();
+            const appIdVal = document.getElementById('fb-appid').value.trim();
+            
+            if (!apiKey || !projectId) {
+                showAlert("Error", "Introduce al menos API Key y Project ID");
+                return;
+            }
+
+            const cfg = {
+                apiKey,
+                projectId,
+                appId: appIdVal || 'hogar-app-id',
+                authDomain: `${projectId}.firebaseapp.com`,
+                storageBucket: `${projectId}.appspot.com`,
+                messagingSenderId: "123456789",
+                measurementId: "G-ABCDEF"
+            };
+
+            localStorage.setItem('hogar_fb_cfg', JSON.stringify(cfg));
+            closeModals();
+            showAlert("¡Configurado!", "Reiniciando conexión con Firebase...");
+            initFirebase(cfg);
+        };
+
+        window.resetToLocalMode = function() {
+            localStorage.removeItem('hogar_fb_cfg');
+            isFirebaseConnected = false;
+            if (unsubscribeFirestore) unsubscribeFirestore();
+            document.getElementById('config-badge').classList.add('hidden');
+            closeModals();
+            updateSyncStatus(false, 'Modo Local');
+            showAlert("Modo Local", "La aplicación ahora funciona de forma local en este dispositivo.");
+        };
+
+        window.showAlert = function(title, message) {
+            document.getElementById('alert-title').innerText = title;
+            document.getElementById('alert-message').innerText = message;
+            document.getElementById('modal-alert').classList.remove('hidden');
+        };
+        window.closeAlertModal = () => document.getElementById('modal-alert').classList.add('hidden');
+
+        window.showConfirm = function(title, message, onYes) {
+            document.getElementById('confirm-title').innerText = title;
+            document.getElementById('confirm-message').innerText = message;
+            const btnYes = document.getElementById('confirm-btn-yes');
+            btnYes.onclick = function() {
+                closeConfirmModal();
+                onYes();
+            };
+            document.getElementById('modal-confirm').classList.remove('hidden');
+        };
+        window.closeConfirmModal = () => document.getElementById('modal-confirm').classList.add('hidden');
+
+        function escapeHtml(str) {
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+        // Initialize on Load
+        window.onload = function() {
+            if (localStorage.getItem('hogar_dark') === '1') {
+                document.documentElement.classList.add('dark');
+            }
+            renderApp();
+            initFirebase();
+        };
+    </script>
+</body>
+</html>
